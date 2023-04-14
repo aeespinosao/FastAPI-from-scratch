@@ -8,6 +8,8 @@ from typing import List
 from random import choice
 from string import ascii_letters
 import shutil 
+from routers.schemas import UserAuth
+from auth.oauth2 import get_current_user
 
 router = APIRouter(
     prefix="/post",
@@ -17,7 +19,7 @@ router = APIRouter(
 image_url_type=["absolute", "relative"]
 
 @router.post("", response_model=PostDisplay)
-def create(request: PostBase, db: Session = Depends(get_db)):
+def create(request: PostBase, db: Session = Depends(get_db), current_user: UserAuth = Depends(get_current_user)):
     if  request.image_url_type not in image_url_type:
         return HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, 
@@ -30,7 +32,7 @@ def retrieve_all(db: Session = Depends(get_db)):
     return db_post.retrieve_all(db)
 
 @router.post("/image", )
-def upload_file(image: UploadFile = File(...)):
+def upload_file(image: UploadFile = File(...), current_user: UserAuth = Depends(get_current_user)):
     rand_str = ''.join(choice(ascii_letters) for i in range(6))
     filename = f"_{rand_str}.".join(image.filename.rsplit(".", 1))
     path = f"images/{filename}"
@@ -39,3 +41,7 @@ def upload_file(image: UploadFile = File(...)):
         shutil.copyfileobj(image.file, buffer)
         
     return {"filename": path}
+
+@router.delete("/{id}")
+def delete_post(id: int, db: Session = Depends(get_db), current_user: UserAuth = Depends(get_current_user)):
+    return db_post.delete(db, id, current_user.id)
